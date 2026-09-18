@@ -14,19 +14,32 @@ export const checkSubscriptionLimit = (resource: 'USER' | 'LEAD' | 'CUSTOMER' | 
         return;
       }
 
-      const subscription = await prisma.subscription.findFirst({
+      let subscription = await prisma.subscription.findFirst({
         where: { tenantId },
         include: { plan: true },
         orderBy: { createdAt: 'desc' },
       });
 
       if (!subscription) {
-        res.status(403).json({
-          success: false,
-          code: 'PLAN_LIMIT_REACHED',
-          message: 'No active subscription found for this workspace.',
-        });
-        return;
+        const defaultPlan = (await prisma.plan.findUnique({ where: { name: 'PRO' } })) ||
+                            (await prisma.plan.findUnique({ where: { name: 'STARTER' } })) ||
+                            (await prisma.plan.findFirst());
+        if (defaultPlan) {
+          const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+          subscription = await prisma.subscription.create({
+            data: {
+              tenantId,
+              planId: defaultPlan.id,
+              status: 'TRIAL',
+              trialEndsAt,
+            },
+            include: { plan: true },
+          });
+        }
+      }
+
+      if (!subscription || !subscription.plan) {
+        return next();
       }
 
       const plan = subscription.plan;
