@@ -1,0 +1,1368 @@
+// Prisma Schema for Empire CRM Multi-Tenant CRM SaaS & CRM Builder
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ----------------------------------------------------
+// 1. TENANT & SAAS CORE MODELS
+// ----------------------------------------------------
+
+model Tenant {
+  id              String    @id @default(uuid())
+  name            String
+  slug            String    @unique
+  domain          String?   @unique
+  status          String    @default("TRIAL") // TRIAL, ACTIVE, SUSPENDED, CANCELLED
+  industry        String?   @default("Generic")
+  companySize     String?   @default("1-10")
+  country         String?   @default("India")
+  city            String?
+  website         String?
+  logo            String?
+  favicon         String?
+  primaryColor    String?   @default("#3b82f6")
+  secondaryColor  String?   @default("#1e40af")
+  emailSenderName String?
+  companyWebsite  String?
+  timezone        String?   @default("Asia/Kolkata")
+  currency        String?   @default("INR")
+  dateFormat      String?   @default("DD/MM/YYYY")
+  template        String?   @default("Generic CRM")
+  trialEndsAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  users           User[]
+  roles           Role[]
+  modules         TenantModule[]
+  subscriptions   Subscription[]
+  usage           Usage?
+  customFields    CustomField[]
+  pipelines       Pipeline[]
+  pipelineStages  PipelineStage[]
+  deals           Deal[]
+  leads           Lead[]
+  customers       Customer[]
+  contacts        Contact[]
+  followUps       FollowUp[]
+  tasks           Task[]
+  notes           Note[]
+  activities      Activity[]
+  leadActivities  LeadActivity[]
+  auditLogs       AuditLog[]
+  automations     AutomationRule[]
+  forms           LeadForm[]
+  apiKeys         ApiKey[]
+  webhooks        Webhook[]
+  webhookLogs     WebhookLog[]
+  integrations    Integration[]
+  projects        Project[]
+  projectTasks    ProjectTask[]
+  milestones      ProjectMilestone[]
+  serviceTickets  ServiceTicket[]
+  salesTargets    SalesTarget[]
+  campaigns       Campaign[]
+  attendances     Attendance[]
+  leaveRequests   LeaveRequest[]
+  callLogs        CallLog[]
+  chatMessages    ChatMessage[]
+  meetings        Meeting[]
+  products        Product[]
+  quotes          Quote[]
+  emailTemplates  EmailTemplate[]
+  customRecords   CustomRecord[]
+  customViews     CustomView[]
+  dashboardWidgets DashboardWidget[]
+  employeeInvitations EmployeeInvitation[]
+  loanApplications    LoanApplication[]
+  loanDocuments       LoanDocument[]
+  realEstateProjects  RealEstateProject[]
+  propertyUnits       PropertyUnit[]
+  siteVisits          SiteVisit[]
+  propertyBookings    PropertyBooking[]
+  propertyInstallments PropertyInstallment[]
+  socialAccounts      SocialAccount[]
+  socialConversations SocialConversation[]
+  socialMessages      SocialMessage[]
+  socialComments      SocialComment[]
+  automationLogs      AutomationLog[]
+  notifications       Notification[]
+  documents           Document[]
+  communications      CommunicationMessage[]
+
+  @@index([slug])
+  @@index([status])
+}
+
+model Plan {
+  id             String         @id @default(uuid())
+  name           String         @unique // FREE, STARTER, PRO, BUSINESS, ENTERPRISE
+  description    String?
+  maxUsers       Int            @default(5)
+  maxLeads       Int            @default(1000)
+  maxCustomers   Int            @default(500)
+  maxStorageMb   Int            @default(1000)
+  maxCustomFields Int           @default(10)
+  maxPipelines   Int            @default(2)
+  maxAutomations Int            @default(5)
+  enabledModules String         // JSON array of enabled module keys
+  apiAccess      Boolean        @default(false)
+  webhooks       Boolean        @default(false)
+  integrations   Boolean        @default(false)
+  price          Float          @default(0)
+  billingCycle   String         @default("monthly")
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  subscriptions  Subscription[]
+}
+
+model Subscription {
+  id               String    @id @default(uuid())
+  tenantId         String
+  tenant           Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  planId           String
+  plan             Plan      @relation(fields: [planId], references: [id])
+  status           String    @default("ACTIVE") // TRIAL, ACTIVE, SUSPENDED, CANCELLED
+  trialEndsAt      DateTime?
+  currentPeriodStart DateTime @default(now())
+  currentPeriodEnd   DateTime @default(now())
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([tenantId])
+}
+
+model Usage {
+  id               String   @id @default(uuid())
+  tenantId         String   @unique
+  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userCount        Int      @default(0)
+  leadCount        Int      @default(0)
+  customerCount    Int      @default(0)
+  dealCount        Int      @default(0)
+  storageMb        Float    @default(0)
+  apiCallsCount    Int      @default(0)
+  automationsCount Int      @default(0)
+  updatedAt        DateTime @updatedAt
+}
+
+model TenantModule {
+  id           String   @id @default(uuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  moduleKey    String   // LEADS, CONTACTS, CUSTOMERS, DEALS, TASKS, FOLLOWUPS, ACTIVITIES, NOTES, CAMPAIGNS, PROJECTS, SERVICES, CALLS, REPORTS, HRMS or custom
+  name         String?
+  singularName String?
+  pluralName   String?
+  icon         String?
+  description  String?
+  isCustom     Boolean  @default(false)
+  sortOrder    Int      @default(0)
+  enabled      Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([tenantId, moduleKey])
+  @@index([tenantId])
+}
+
+// ----------------------------------------------------
+// 2. USER & RBAC MODELS
+// ----------------------------------------------------
+
+model Role {
+  id          String   @id @default(uuid())
+  tenantId    String?  // Null for global platform admin roles
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name        String   // SUPER_ADMIN, PLATFORM_ADMIN, TENANT_ADMIN, MANAGER, SALES, SUPPORT, STAFF, CUSTOM_ROLE
+  description String?
+  permissions String   // JSON array of permitted resources: ["*"] or ["LEADS_VIEW", "LEADS_CREATE", ...]
+  isDefault   Boolean  @default(false)
+  users       User[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+model User {
+  id          String   @id @default(uuid())
+  tenantId    String?  // Null for Platform Owner / Platform Admin
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  email       String
+  password    String
+  fullName    String
+  phone       String?
+  avatar      String?
+  isActive    Boolean  @default(true)
+  department  String?  @default("Sales")
+  designation String?  @default("Agent")
+  roleId      String
+  role        Role     @relation(fields: [roleId], references: [id])
+  
+  assignedLeads     Lead[]            @relation("AssignedLeads")
+  assignedDeals     Deal[]            @relation("AssignedDeals")
+  assignedTasks     Task[]            @relation("AssignedTasks")
+  createdNotes      Note[]            @relation("CreatedNotes")
+  activities        Activity[]        @relation("UserActivities")
+  auditLogs         AuditLog[]        @relation("UserAuditLogs")
+  projectTasks      ProjectTask[]     @relation("AssignedProjectTasks")
+  serviceTickets    ServiceTicket[]   @relation("AssignedServiceTickets")
+  salesTargets      SalesTarget[]     @relation("UserSalesTargets")
+  attendances       Attendance[]      @relation("UserAttendances")
+  leaveRequests     LeaveRequest[]    @relation("UserLeaveRequests")
+  callLogs          CallLog[]         @relation("UserCallLogs")
+  sentMessages      ChatMessage[]     @relation("SentMessages")
+  receivedMessages  ChatMessage[]     @relation("ReceivedMessages")
+  refreshTokens     RefreshToken[]
+  assignedLoanApplications LoanApplication[] @relation("AssignedLoanApplications")
+  assignedSiteVisits       SiteVisit[]       @relation("AssignedSiteVisits")
+  assignedPropertyUnits    PropertyUnit[]    @relation("AssignedPropertyUnits")
+  handledBookings          PropertyBooking[] @relation("HandledBookings")
+  notifications            Notification[]
+  uploadedDocuments        Document[]        @relation("UploadedDocuments")
+  communications           CommunicationMessage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@index([email])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+// ----------------------------------------------------
+// 3. CRM BUILDER COMPONENTS (CUSTOM FIELDS, PIPELINES, AUTOMATIONS, FORMS)
+// ----------------------------------------------------
+
+model CustomField {
+  id           String             @id @default(uuid())
+  tenantId     String
+  tenant       Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  entityType   String             // LEAD, CONTACT, CUSTOMER, DEAL, TASK, PROJECT, SERVICE
+  fieldName    String
+  fieldKey     String
+  fieldType    String             // TEXT, LONG_TEXT, NUMBER, CURRENCY, DATE, DATETIME, BOOLEAN, EMAIL, PHONE, URL, DROPDOWN, MULTI_SELECT, USER, RELATION, FILE
+  options      String?            // JSON string array for DROPDOWN/MULTI_SELECT
+  isRequired   Boolean            @default(false)
+  isUnique     Boolean            @default(false)
+  isVisible    Boolean            @default(true)
+  isEditable   Boolean            @default(true)
+  displayOrder Int                @default(0)
+  validation   String?            // JSON string for regex/min/max
+  defaultValue String?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  values       CustomFieldValue[]
+
+  @@unique([tenantId, entityType, fieldKey])
+  @@index([tenantId])
+}
+
+model CustomFieldValue {
+  id            String      @id @default(uuid())
+  tenantId      String
+  customFieldId String
+  customField   CustomField @relation(fields: [customFieldId], references: [id], onDelete: Cascade)
+  recordId      String      // ID of Lead, Customer, Deal, etc.
+  value         String?     // Serialized value or string representation
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([customFieldId, recordId])
+  @@index([tenantId])
+  @@index([recordId])
+}
+
+model Pipeline {
+  id          String          @id @default(uuid())
+  tenantId    String
+  tenant      Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name        String
+  isDefault   Boolean         @default(false)
+  stages      PipelineStage[]
+  deals       Deal[]
+  leads       Lead[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([tenantId])
+}
+
+model PipelineStage {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  pipelineId  String
+  pipeline    Pipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  name        String
+  stageKey    String
+  order       Int      @default(0)
+  color       String   @default("#3b82f6")
+  probability Int      @default(20)
+  closedWon   Boolean  @default(false)
+  closedLost  Boolean  @default(false)
+  deals       Deal[]
+  leads       Lead[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([pipelineId, stageKey])
+  @@index([tenantId])
+}
+
+model AutomationRule {
+  id           String   @id @default(uuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name         String
+  triggerEvent String   // lead.created, lead.status_changed, deal.won, deal.stage_changed, task.created, customer.created
+  conditions   String   // JSON array of conditions: [{ field, operator, value }]
+  actions      String   // JSON array of actions: [{ actionType, params }]
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  logs         AutomationLog[]
+
+  @@index([tenantId])
+}
+
+model LeadForm {
+  id               String   @id @default(uuid())
+  tenantId         String
+  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name             String
+  formKey          String   @unique
+  fields           String   // JSON array of form fields
+  redirectUrl      String?
+  isActive         Boolean  @default(true)
+  submissionsCount Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+// ----------------------------------------------------
+// 4. API KEYS, WEBHOOKS & INTEGRATIONS
+// ----------------------------------------------------
+
+model ApiKey {
+  id          String    @id @default(uuid())
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name        String
+  keyPrefix   String
+  keyHash     String    @unique
+  permissions String    // JSON array of scope strings
+  lastUsedAt  DateTime?
+  isRevoked   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([tenantId])
+}
+
+model Webhook {
+  id          String       @id @default(uuid())
+  tenantId    String
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name        String
+  url         String
+  secret      String
+  events      String       // JSON array of event names
+  isActive    Boolean      @default(true)
+  retryPolicy String?      @default("3-retries")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  logs        WebhookLog[]
+
+  @@index([tenantId])
+}
+
+model WebhookLog {
+  id           String   @id @default(uuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  webhookId    String
+  webhook      Webhook  @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+  event        String
+  payload      String
+  statusCode   Int?
+  responseBody String?
+  error        String?
+  createdAt    DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([webhookId])
+}
+
+model Integration {
+  id                   String   @id @default(uuid())
+  tenantId             String
+  tenant               Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  provider             String   // GOOGLE, MICROSOFT, WHATSAPP, EMAIL, SLACK, ZAPIER, PAYMENT
+  status               String   @default("DISCONNECTED") // CONNECTED, DISCONNECTED, ERROR
+  credentialsEncrypted String?  // Encrypted JSON credentials
+  config               String?  // JSON config parameters
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@unique([tenantId, provider])
+  @@index([tenantId])
+}
+
+// ----------------------------------------------------
+// 5. CRM CORE DATA MODELS (LEADS, CUSTOMERS, DEALS, CONTACTS, TASKS, NOTES, ACTIVITIES)
+// ----------------------------------------------------
+
+model Lead {
+  id           String         @id @default(uuid())
+  tenantId     String
+  tenant       Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  leadId       String         // e.g. EMP-LD-1001
+  customerName String
+  phone        String
+  email        String?
+  city         String?
+  loanType     String         @default("Personal Loan")
+  amount       Float          @default(0)
+  source       String         @default("Website") // Website, Referral, Cold Call, Facebook, Google
+  status       String         @default("New")     // New, Contacted, Interested, In Progress, Converted, Lost, Rejected
+  pipelineId   String?
+  pipeline     Pipeline?      @relation(fields: [pipelineId], references: [id])
+  stageId      String?
+  stage        PipelineStage? @relation(fields: [stageId], references: [id])
+  assignedToId String?
+  assignedTo   User?          @relation("AssignedLeads", fields: [assignedToId], references: [id])
+  priority     String         @default("Medium") // Low, Medium, High, Urgent
+  industry     String         @default("GENERAL") // LOAN, REAL_ESTATE, SOCIAL, GENERAL
+  campaignName String?
+  leadScore    Int            @default(50)
+  leadScoreCategory String    @default("WARM") // HOT, WARM, COLD
+  leadScoreReason   String?
+  aiSummary         String?
+  tags         String?        @default("[]")
+  notes        String?
+  nextFollowUp DateTime?
+  createdDate  DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  activities          LeadActivity[]
+  contacts            Contact[]
+  followUps           FollowUp[]
+  tasks               Task[]
+  notesList           Note[]
+  deals               Deal[]
+  loanApplications    LoanApplication[]
+  siteVisits          SiteVisit[]
+  propertyBookings    PropertyBooking[]
+  socialConversations SocialConversation[]
+
+  @@unique([tenantId, leadId])
+  @@index([tenantId])
+  @@index([tenantId, status])
+}
+
+model Customer {
+  id            String   @id @default(uuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customerId    String   // e.g. EMP-CUST-5001
+  name          String
+  email         String
+  phone         String
+  city          String?
+  company       String?
+  status        String   @default("Active") // Active, Inactive
+  totalDeals    Int      @default(0)
+  lifetimeValue Float    @default(0)
+  createdDate   DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  contacts         Contact[]
+  notes            Note[]
+  deals            Deal[]
+  loanApplications LoanApplication[]
+  siteVisits       SiteVisit[]
+  propertyBookings PropertyBooking[]
+
+  @@unique([tenantId, customerId])
+  @@unique([tenantId, email])
+  @@index([tenantId])
+}
+
+model Deal {
+  id                String         @id @default(uuid())
+  tenantId          String
+  tenant            Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  dealId            String         // e.g. EMP-DEAL-3001
+  title             String
+  amount            Float          @default(0)
+  pipelineId        String
+  pipeline          Pipeline       @relation(fields: [pipelineId], references: [id])
+  stageId           String
+  stage             PipelineStage  @relation(fields: [stageId], references: [id])
+  customerId        String?
+  customer          Customer?      @relation(fields: [customerId], references: [id])
+  leadId            String?
+  lead              Lead?          @relation(fields: [leadId], references: [id])
+  assignedToId      String?
+  assignedTo        User?          @relation("AssignedDeals", fields: [assignedToId], references: [id])
+  status            String         @default("OPEN") // OPEN, WON, LOST
+  expectedCloseDate DateTime?
+  closedAt          DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  tasks             Task[]
+  notes             Note[]
+
+  @@unique([tenantId, dealId])
+  @@index([tenantId])
+  @@index([tenantId, status])
+}
+
+model Contact {
+  id          String    @id @default(uuid())
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name        String
+  email       String?
+  phone       String?
+  designation String?
+  company     String?
+  leadId      String?
+  lead        Lead?     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  customerId  String?
+  customer    Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+
+  @@index([tenantId])
+}
+
+model FollowUp {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  leadId      String
+  lead        Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  title       String
+  scheduledAt DateTime
+  status      String   @default("Pending") // Pending, Completed, Cancelled
+  notes       String?
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  @@index([tenantId])
+}
+
+model Task {
+  id           String   @id @default(uuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  title        String
+  description  String?
+  priority     String   @default("Medium") // Low, Medium, High, Urgent
+  status       String   @default("Pending") // Pending, In Progress, Completed, Overdue
+  dueDate      DateTime
+  assignedToId String
+  assignedTo   User     @relation("AssignedTasks", fields: [assignedToId], references: [id])
+  leadId       String?
+  lead         Lead?    @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  dealId       String?
+  deal         Deal?    @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+model Note {
+  id          String    @id @default(uuid())
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  content     String
+  leadId      String?
+  lead        Lead?     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  customerId  String?
+  customer    Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  dealId      String?
+  deal        Deal?     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  createdById String
+  createdBy   User      @relation("CreatedNotes", fields: [createdById], references: [id])
+  createdAt   DateTime  @default(now())
+
+  @@index([tenantId])
+}
+
+model Activity {
+  id         String   @id @default(uuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  title      String
+  details    String?
+  type       String   @default("INFO") // LOG_IN, LEAD_CREATED, USER_CREATED, NOTE_ADDED, TASK_ASSIGNED
+  entityType String?  // User, Lead, Customer, Task, Note, Deal
+  entityId   String?
+  userId     String?
+  user       User?    @relation("UserActivities", fields: [userId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@index([tenantId])
+}
+
+model LeadActivity {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  type      String   // STATUS_CHANGE, NOTE, CALL, MESSAGE
+  title     String
+  details   String?
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  tenantId  String?  // Null for global platform admin audit logs
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?    @relation("UserAuditLogs", fields: [userId], references: [id])
+  action    String   // ADMIN_LOGIN, PROVISION_TENANT, CREATE_USER, MODIFY_LEAD, UPDATE_SETTINGS, PERMISSION_CHANGE, etc.
+  entity    String   // Tenant, User, Lead, Customer, Setting, Role, System
+  entityId  String?
+  details   String?
+  ipAddress String?
+  userAgent String?
+  timestamp DateTime @default(now())
+
+  @@index([tenantId])
+}
+
+model SystemSetting {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       String
+  category    String   @default("General") // General, Security, Notifications, CRM
+  description String?
+  updatedAt   DateTime @updatedAt
+}
+
+// ----------------------------------------------------
+// 6. EXTENDED MODULE DATA MODELS (PROJECTS, SERVICES, TARGETS, CAMPAIGNS, HRMS, CALLS, CHAT)
+// ----------------------------------------------------
+
+model Project {
+  id          String             @id @default(uuid())
+  tenantId    String
+  tenant      Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  status      String             @default("In Progress") // In Progress, Completed, On Hold
+  budget      Float              @default(0)
+  startDate   DateTime?
+  endDate     DateTime?
+  createdById String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  tasks       ProjectTask[]
+  milestones  ProjectMilestone[]
+
+  @@index([tenantId])
+}
+
+model ProjectTask {
+  id           String   @id @default(uuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  projectId    String
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title        String
+  status       String   @default("Pending")
+  priority     String   @default("Medium")
+  dueDate      DateTime?
+  assignedToId String?
+  assignedTo   User?    @relation("AssignedProjectTasks", fields: [assignedToId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+model ProjectMilestone {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title       String
+  dueDate     DateTime?
+  isCompleted Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([tenantId])
+}
+
+model ServiceTicket {
+  id           String   @id @default(uuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  ticketId     String   // e.g. TICKET-101
+  subject      String
+  description  String?
+  priority     String   @default("Medium") // Low, Medium, High, Urgent
+  status       String   @default("Open")   // Open, In Progress, Resolved, Closed
+  customerId   String?
+  assignedToId String?
+  assignedTo   User?    @relation("AssignedServiceTickets", fields: [assignedToId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+model SalesTarget {
+  id             String   @id @default(uuid())
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User     @relation("UserSalesTargets", fields: [userId], references: [id], onDelete: Cascade)
+  period         String   // e.g. 2026-Q3 or 2026-08
+  targetAmount   Float    @default(0)
+  achievedAmount Float    @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+model Campaign {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  type      String   @default("Email") // Email, SMS, WhatsApp, Ad
+  status    String   @default("Draft") // Draft, Active, Completed
+  budget    Float    @default(0)
+  metrics   String?  // JSON string for reach/conversions
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+model Attendance {
+  id        String    @id @default(uuid())
+  tenantId  String
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User      @relation("UserAttendances", fields: [userId], references: [id], onDelete: Cascade)
+  date      String    // YYYY-MM-DD
+  checkIn   DateTime?
+  checkOut  DateTime?
+  status    String    @default("Present") // Present, Absent, Half Day
+  createdAt DateTime  @default(now())
+
+  @@index([tenantId])
+}
+
+model LeaveRequest {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation("UserLeaveRequests", fields: [userId], references: [id], onDelete: Cascade)
+  type      String   @default("Casual") // Casual, Sick, Paid
+  startDate DateTime
+  endDate   DateTime
+  status    String   @default("Pending") // Pending, Approved, Rejected
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+}
+
+model CallLog {
+  id           String   @id @default(uuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User     @relation("UserCallLogs", fields: [userId], references: [id], onDelete: Cascade)
+  leadId       String?
+  customerId   String?
+  duration     Int      @default(0) // seconds
+  type         String   @default("Outbound") // Inbound, Outbound, Missed
+  summary      String?
+  recordingUrl String?
+  createdAt    DateTime @default(now())
+
+  @@index([tenantId])
+}
+
+model ChatMessage {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  senderId    String
+  sender      User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId  String?
+  receiver    User?    @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  message     String
+  attachments String?  // JSON string
+  createdAt   DateTime @default(now())
+
+  @@index([tenantId])
+}
+
+model Meeting {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  meetingDate DateTime
+  duration    Int      @default(30) // minutes
+  location    String?
+  meetingLink String?
+  status      String   @default("Scheduled") // Scheduled, Completed, Cancelled
+  leadId      String?
+  contactId   String?
+  dealId      String?
+  hostId      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name        String
+  sku         String?
+  category    String   @default("General")
+  price       Float    @default(0)
+  cost        Float    @default(0)
+  tax         Float    @default(0)
+  status      String   @default("Active") // Active, Inactive
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  quoteItems  QuoteItem[]
+
+  @@index([tenantId])
+}
+
+model Quote {
+  id          String      @id @default(uuid())
+  tenantId    String
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  quoteId     String      // e.g. QT-1001
+  subject     String
+  dealId      String?
+  customerId  String?
+  contactId   String?
+  totalAmount Float       @default(0)
+  status      String      @default("Draft") // Draft, Sent, Approved, Rejected
+  validUntil  DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  items       QuoteItem[]
+
+  @@index([tenantId])
+}
+
+model QuoteItem {
+  id        String   @id @default(uuid())
+  quoteId   String
+  quote     Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  quantity  Int      @default(1)
+  unitPrice Float    @default(0)
+  totalPrice Float   @default(0)
+}
+
+model EmailTemplate {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  subject   String
+  body      String
+  category  String   @default("General")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+model CustomRecord {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  moduleKey   String   // e.g. PROPERTIES, VEHICLES, CANDIDATES
+  recordId    String   // e.g. REC-1001
+  title       String
+  data        String   // JSON string storing dynamic custom field key-value pairs
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([tenantId, moduleKey])
+}
+
+model CustomView {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  moduleKey   String
+  name        String
+  filters     String   // JSON string array of filter rules
+  isDefault   Boolean  @default(false)
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([tenantId, moduleKey])
+}
+
+model DashboardWidget {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId    String?
+  widgetKey String
+  title     String
+  type      String   @default("METRIC") // METRIC, CHART, TABLE, LIST
+  config    String?  // JSON string
+  order     Int      @default(0)
+  visible   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+model EmployeeInvitation {
+  id           String   @id @default(uuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  email        String
+  employeeName String
+  role         String   @default("STAFF") // ADMIN, MANAGER, STAFF
+  invitedBy    String
+  status       String   @default("PENDING") // PENDING, ACCEPTED, EXPIRED
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime
+
+  @@index([tenantId])
+  @@index([email])
+  @@index([status])
+}
+
+// ----------------------------------------------------
+// 7. LOAN CRM MODELS (DSA SATHI LOAN PLATFORM)
+// ----------------------------------------------------
+
+model LoanApplication {
+  id               String         @id @default(uuid())
+  tenantId         String
+  tenant           Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  applicationId    String         // e.g. LOAN-1001
+  applicantName    String
+  phone            String
+  email            String?
+  panNumber        String?
+  aadhaarNumber    String?
+  employmentType   String         @default("Salaried") // Salaried, Self-Employed, Business, Professional
+  monthlyIncome    Float          @default(0)
+  loanType         String         @default("Personal Loan") // Home Loan, Personal Loan, Business Loan, Car Loan, Gold Loan, Mortgage Loan
+  requestedAmount  Float          @default(0)
+  sanctionedAmount Float          @default(0)
+  disbursedAmount  Float          @default(0)
+  bankPartner      String         @default("HDFC Bank") // HDFC, SBI, ICICI, Axis, Muthoot, etc.
+  dsaCode          String?        @default("DST-DIRECT-001")
+  status           String         @default("Submitted") // Draft, Submitted, In Review, Sanctioned, Disbursed, Rejected
+  tenureMonths     Int            @default(36)
+  interestRate     Float          @default(10.5)
+  emiAmount        Float          @default(0)
+  rejectionReason  String?
+  leadId           String?
+  lead             Lead?          @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  customerId       String?
+  customer         Customer?      @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  assignedToId     String?
+  assignedTo       User?          @relation("AssignedLoanApplications", fields: [assignedToId], references: [id], onDelete: SetNull)
+  documents        LoanDocument[]
+  createdDate      DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@unique([tenantId, applicationId])
+  @@index([tenantId])
+  @@index([tenantId, status])
+}
+
+model LoanDocument {
+  id                String          @id @default(uuid())
+  tenantId          String
+  tenant            Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  loanApplicationId String
+  loanApplication   LoanApplication @relation(fields: [loanApplicationId], references: [id], onDelete: Cascade)
+  documentType      String          // PAN, Aadhaar, Salary Slip, Bank Statement, ITR, Property Documents
+  documentUrl       String
+  status            String          @default("Pending") // Pending, Verified, Rejected
+  notes             String?
+  verifiedAt        DateTime?
+  createdAt         DateTime        @default(now())
+
+  @@index([tenantId])
+  @@index([loanApplicationId])
+}
+
+// ----------------------------------------------------
+// 8. REAL ESTATE / PLOT CRM MODELS
+// ----------------------------------------------------
+
+model RealEstateProject {
+  id                 String            @id @default(uuid())
+  tenantId           String
+  tenant             Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  projectId          String            // e.g. PROJ-101
+  name               String
+  code               String
+  location           String
+  city               String            @default("Mumbai")
+  projectType        String            @default("Residential") // Residential, Commercial, Plotted Development, Mixed
+  totalArea          String?
+  totalUnits         Int               @default(0)
+  status             String            @default("Active") // Planning, Active, Sold Out, Completed
+  startDate          DateTime?
+  expectedCompletion DateTime?
+  brochureUrl        String?
+  layoutMapUrl       String?
+  units              PropertyUnit[]
+  siteVisits         SiteVisit[]
+  bookings           PropertyBooking[]
+  createdDate        DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  @@unique([tenantId, projectId])
+  @@index([tenantId])
+}
+
+model PropertyUnit {
+  id                 String            @id @default(uuid())
+  tenantId           String
+  tenant             Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  projectId          String
+  project            RealEstateProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  unitNumber         String            // Plot 12, Flat 402, etc.
+  block              String            @default("Block A") // Block A, Tower 1, Sector 4
+  unitType           String            @default("Plot") // Plot, 2BHK Flat, 3BHK Flat, Villa, Commercial Shop
+  sizeSqFt           Float             @default(1000)
+  facing             String?           @default("East") // North, South, East, West, North-East
+  basePrice          Float             @default(0)
+  totalPrice         Float             @default(0)
+  status             String            @default("Available") // Available, Booked, Sold, Blocked, Under Registration
+  assignedCustomerId String?
+  assignedAgentId    String?
+  assignedAgent      User?             @relation("AssignedPropertyUnits", fields: [assignedAgentId], references: [id], onDelete: SetNull)
+  siteVisits         SiteVisit[]
+  bookings           PropertyBooking[]
+  createdDate        DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  @@unique([projectId, unitNumber])
+  @@index([tenantId])
+  @@index([projectId])
+  @@index([tenantId, status])
+}
+
+model SiteVisit {
+  id                  String             @id @default(uuid())
+  tenantId            String
+  tenant              Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  projectId           String?
+  project             RealEstateProject? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  unitId              String?
+  unit                PropertyUnit?      @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  leadId              String?
+  lead                Lead?              @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  customerId          String?
+  customer            Customer?          @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  visitorName         String
+  phone               String
+  visitDate           DateTime
+  status              String             @default("Scheduled") // Scheduled, Completed, Cancelled, Rescheduled
+  assignedExecutiveId String?
+  assignedExecutive   User?              @relation("AssignedSiteVisits", fields: [assignedExecutiveId], references: [id], onDelete: SetNull)
+  feedback            String?
+  outcome             String?            @default("Interested") // Interested, Highly Interested, Not Interested, Booking Initiated
+  createdDate         DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+}
+
+model PropertyBooking {
+  id               String                @id @default(uuid())
+  tenantId         String
+  tenant           Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  bookingId        String                // e.g. BKG-2026-101
+  projectId        String
+  project          RealEstateProject     @relation(fields: [projectId], references: [id])
+  unitId           String
+  unit             PropertyUnit          @relation(fields: [unitId], references: [id])
+  customerId       String?
+  customer         Customer?             @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  leadId           String?
+  lead             Lead?                 @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  salesExecutiveId String?
+  salesExecutive   User?                 @relation("HandledBookings", fields: [salesExecutiveId], references: [id], onDelete: SetNull)
+  bookingDate      DateTime              @default(now())
+  agreementValue   Float                 @default(0)
+  tokenAmount      Float                 @default(0)
+  totalPaidAmount  Float                 @default(0)
+  balanceAmount    Float                 @default(0)
+  paymentPlan      String                @default("Construction Linked") // Construction Linked, Down Payment, Flexible
+  status           String                @default("Token Paid") // Token Paid, Agreement Signed, Registered, Handed Over, Cancelled
+  notes            String?
+  installments     PropertyInstallment[]
+  createdDate      DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  @@unique([tenantId, bookingId])
+  @@index([tenantId])
+}
+
+model PropertyInstallment {
+  id                String          @id @default(uuid())
+  tenantId          String
+  tenant            Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  bookingId         String
+  booking           PropertyBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  installmentNumber Int             @default(1)
+  milestoneName     String          // Token, Foundation, Plinth, 1st Slab, Brickwork, Flooring, Possession
+  dueDate           DateTime
+  amount            Float           @default(0)
+  paidAmount        Float           @default(0)
+  status            String          @default("Pending") // Pending, Paid, Overdue
+  paidAt            DateTime?
+  paymentReference  String?
+  createdDate       DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([tenantId])
+  @@index([bookingId])
+}
+
+// ----------------------------------------------------
+// 9. SOCIAL MEDIA CRM MODELS
+// ----------------------------------------------------
+
+model SocialAccount {
+  id                   String               @id @default(uuid())
+  tenantId             String
+  tenant               Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  platform             String               // FACEBOOK, INSTAGRAM, GOOGLE, WHATSAPP
+  accountName          String
+  accountId            String
+  pageId               String?
+  accessTokenEncrypted String?
+  status               String               @default("CONNECTED") // CONNECTED, DISCONNECTED, ERROR
+  profilePictureUrl    String?
+  lastSyncedAt         DateTime?
+  createdDate          DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+
+  conversations        SocialConversation[]
+
+  @@unique([tenantId, platform, accountId])
+  @@index([tenantId])
+}
+
+model SocialConversation {
+  id                     String          @id @default(uuid())
+  tenantId               String
+  tenant                 Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  socialAccountId        String?
+  socialAccount          SocialAccount?  @relation(fields: [socialAccountId], references: [id], onDelete: SetNull)
+  platform               String          // FACEBOOK, INSTAGRAM, GOOGLE, WHATSAPP
+  externalConversationId String
+  senderId               String
+  senderName             String
+  senderAvatar           String?
+  senderPhone            String?
+  senderEmail            String?
+  lastMessageText        String?
+  lastMessageTime        DateTime?
+  leadId                 String?
+  lead                   Lead?           @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  status                 String          @default("OPEN") // OPEN, RESOLVED, PENDING
+  unreadCount            Int             @default(0)
+  messages               SocialMessage[]
+  createdDate            DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+
+  @@unique([tenantId, externalConversationId])
+  @@index([tenantId])
+  @@index([tenantId, platform])
+}
+
+model SocialMessage {
+  id             String             @id @default(uuid())
+  tenantId       String
+  tenant         Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  conversationId String
+  conversation   SocialConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  platform       String
+  direction      String             @default("INBOUND") // INBOUND, OUTBOUND
+  messageText    String
+  mediaUrl       String?
+  timestamp      DateTime           @default(now())
+  deliveryStatus String             @default("DELIVERED") // SENT, DELIVERED, READ, FAILED
+  senderName     String
+  createdDate    DateTime           @default(now())
+
+  @@index([tenantId])
+  @@index([conversationId])
+}
+
+model SocialComment {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  platform    String   // FACEBOOK, INSTAGRAM, GOOGLE
+  postId      String
+  commentId   String
+  authorName  String
+  commentText String
+  sentiment   String   @default("NEUTRAL") // POSITIVE, NEUTRAL, NEGATIVE
+  replyText   String?
+  isReplied   Boolean  @default(false)
+  createdDate DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([tenantId, commentId])
+  @@index([tenantId])
+}
+
+// ----------------------------------------------------
+// 10. WORKFLOW ENGINE EXECUTION LOGS
+// ----------------------------------------------------
+
+model AutomationLog {
+  id           String          @id @default(uuid())
+  tenantId     String
+  tenant       Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  ruleId       String?
+  rule         AutomationRule? @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+  triggerEvent String
+  entityType   String
+  entityId     String
+  actionType   String
+  status       String          @default("SUCCESS") // SUCCESS, FAILED, SKIPPED
+  details      String?         // JSON execution details or error message
+  startedAt    DateTime        @default(now())
+  completedAt  DateTime?
+  executedAt   DateTime        @default(now())
+
+  @@index([tenantId])
+  @@index([ruleId])
+}
+
+model Notification {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        String   // NEW_LEAD, ASSIGNED_LEAD, NEW_DEAL, FOLLOWUP_DUE, FOLLOWUP_OVERDUE, WORKFLOW_EXECUTION, PAYMENT, BOOKING, LOAN_STATUS_CHANGE, AI_RECOMMENDATION
+  title       String
+  message     String
+  entityType  String?  // Lead, Deal, FollowUp, Loan, Booking, Workflow
+  entityId    String?
+  link        String?
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([userId, isRead])
+}
+
+// ----------------------------------------------------
+// 11. UNIFIED DOCUMENT MANAGEMENT & COMMUNICATION CENTER
+// ----------------------------------------------------
+
+model Document {
+  id           String   @id @default(uuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  title        String
+  fileName     String
+  fileUrl      String
+  fileType     String   // pdf, docx, png, jpg, xlsx, csv, other
+  fileSize     Int      @default(0) // in bytes
+  entityType   String   // Lead, Customer, Loan, Property, Booking, Deal
+  entityId     String
+  uploadedById String?
+  uploadedBy   User?    @relation("UploadedDocuments", fields: [uploadedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([tenantId, entityType, entityId])
+}
+
+model CommunicationMessage {
+  id           String   @id @default(uuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  channel      String   // EMAIL, WHATSAPP, SMS
+  direction    String   // INBOUND, OUTBOUND
+  sender       String
+  recipient    String
+  subject      String?
+  content      String
+  status       String   @default("SENT") // QUEUED, SENT, DELIVERED, READ, FAILED
+  leadId       String?
+  customerId   String?
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([tenantId, channel])
+  @@index([tenantId, leadId])
+  @@index([tenantId, customerId])
+}

@@ -1,0 +1,1 @@
+const e=r=>isNaN(r)||r===null||r===void 0?"₹0":new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:0}).format(r),i=r=>isNaN(r)||r===null||r===void 0?"₹0":r>=1e7?`₹${(r/1e7).toFixed(1)}Cr`:r>=1e5?`₹${(r/1e5).toFixed(1)}L`:r>=1e3?`₹${(r/1e3).toFixed(0)}K`:`₹${r}`;export{i as a,e as f};

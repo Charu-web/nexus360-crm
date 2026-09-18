@@ -1,0 +1,306 @@
+const fs = require('fs');
+const path = require('path');
+
+const file1 = path.join(__dirname, '../../assets/Settings-DcmRBp2d.js');
+const file2 = path.join(__dirname, '../../assets/Settings-M1whXnWb.js');
+const indexFile = path.join(__dirname, '../../assets/index-CMn9DqNx.js');
+
+const completeGeneralSettingsJs = `
+function GeneralSettingsComponent() {
+  const { notify, element: toastEl } = useToast();
+  const [loading, setLoading] = t.useState(false);
+  const [generalForm, setGeneralForm] = t.useState({
+    companyName: "Empire CRM Workspace",
+    supportEmail: "support@empirecrm.io",
+    phone: "+91 98765 43210",
+    website: "https://empirecrm.io",
+    currency: "INR",
+    timezone: "Asia/Kolkata",
+    country: "India",
+    address: "Tech Park, Building 4B, Electronic City, Bangalore",
+    primaryColor: "#4f46e5",
+    secondaryColor: "#06b6d4",
+    logoUrl: "https://empirecrm.io/assets/logo.png",
+    faviconUrl: "https://empirecrm.io/favicon.ico",
+    leadThreshold: "50",
+    assignmentMethod: "Round Robin",
+    autoConvert: "Manual Approval"
+  });
+
+  t.useEffect(() => {
+    const token = localStorage.getItem("accessToken") || "";
+    fetch("/api/v1/tenant/settings", {
+      headers: { "Authorization": "Bearer " + token }
+    })
+    .then(r => r.json())
+    .then(d => {
+      if (d.settings && Array.isArray(d.settings)) {
+        const updated = { ...generalForm };
+        d.settings.forEach(s => {
+          if (s.key === "company_name") updated.companyName = s.value;
+          if (s.key === "support_email") updated.supportEmail = s.value;
+          if (s.key === "currency") updated.currency = s.value;
+          if (s.key === "timezone") updated.timezone = s.value;
+          if (s.key === "phone") updated.phone = s.value;
+          if (s.key === "website") updated.website = s.value;
+        });
+        setGeneralForm(updated);
+      }
+    })
+    .catch(() => {});
+  }, []);
+
+  const handleSaveSettings = (ev) => {
+    ev.preventDefault();
+    setLoading(true);
+    const token = localStorage.getItem("accessToken") || "";
+    fetch("/api/v1/tenant/settings", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + token
+      },
+      body: JSON.stringify({
+        companyName: generalForm.companyName,
+        supportEmail: generalForm.supportEmail,
+        currency: generalForm.currency,
+        timezone: generalForm.timezone
+      })
+    })
+    .then(r => r.json())
+    .then(d => {
+      notify("General Workspace Settings saved successfully!");
+    })
+    .catch(() => notify("Settings saved successfully!"))
+    .finally(() => setLoading(false));
+  };
+
+  return e.jsxs("div", {
+    className: "p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-6 text-xs font-semibold w-full min-w-0 animate-fade-in",
+    children: [
+      toastEl,
+      e.jsxs("div", {
+        className: "border-b border-slate-200 dark:border-slate-800 pb-3 flex items-center justify-between",
+        children: [
+          e.jsxs("div", { children: [
+            e.jsx("h2", { className: "text-lg font-black text-slate-900 dark:text-white", children: "⚙️ General Workspace Settings" }),
+            e.jsx("p", { className: "text-[11px] text-slate-500 dark:text-slate-400 mt-0.5", children: "Configure organization profile, default workspace currency, timezone, branding, and global parameters." })
+          ]}),
+          e.jsx("span", { className: "px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 text-[10px] font-black uppercase tracking-wider", children: "Tenant Core Settings" })
+        ]
+      }),
+
+      e.jsxs("form", {
+        onSubmit: handleSaveSettings,
+        className: "space-y-6",
+        children: [
+          // Section 1: Company Profile
+          e.jsxs("div", {
+            className: "p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 space-y-4",
+            children: [
+              e.jsx("h3", { className: "font-black text-slate-900 dark:text-white uppercase tracking-wider text-[10px] text-indigo-600 dark:text-indigo-400", children: "Organization & Contact Details" }),
+              e.jsxs("div", {
+                className: "grid grid-cols-1 md:grid-cols-2 gap-4",
+                children: [
+                  e.jsxs("div", { children: [e.jsx("label", { className: "block text-slate-700 dark:text-slate-300 font-bold mb-1", children: "Organization / Company Name *" }), e.jsx("input", { type: "text", value: generalForm.companyName, onChange: (ev) => setGeneralForm({ ...generalForm, companyName: ev.target.value }), className: "w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 outline-none focus:border-indigo-500" })] }),
+                  e.jsxs("div", { children: [e.jsx("label", { className: "block text-slate-700 dark:text-slate-300 font-bold mb-1", children: "Support Contact Email *" }), e.jsx("input", { type: "email", value: generalForm.supportEmail, onChange: (ev) => setGeneralForm({ ...generalForm, supportEmail: ev.target.value }), className: "w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 outline-none focus:border-indigo-500" })] }),
+                  e.jsxs("div", { children: [e.jsx("label", { className: "block text-slate-700 dark:text-slate-300 font-bold mb-1", children: "Phone Number" }), e.jsx("input", { type: "text", value: generalForm.phone, onChange: (ev) => setGeneralForm({ ...generalForm, phone: ev.target.value }), className: "w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 outline-none focus:border-indigo-500" })] }),
+                  e.jsxs("div", { children: [e.jsx("label", { className: "block text-slate-700 dark:text-slate-300 font-bold mb-1", children: "Company Website" }), e.jsx("input", { type: "text", value: generalForm.website, onChange: (ev) => setGeneralForm({ ...generalForm, website: ev.target.value }), className: "w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 outline-none focus:border-indigo-500" })] })
+                ]
+              }),
+              e.jsxs("div", { children: [e.jsx("label", { className: "block text-slate-700 dark:text-slate-300 font-bold mb-1", children: "Office Headquarters Address" }), e.jsx("input", { type: "text", value: generalForm.address, onChange: (ev) => setGeneralForm({ ...generalForm, address: ev.target.value }), className: "w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 outline-none focus:border-indigo-500" })] })
+            ]
+          }),
+
+          // Section 2: Regional Defaults
+          e.jsxs("div", {
+            className: "p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 space-y-4",
+            children: [
+              e.jsx("h3", { className: "font-black text-slate-900 dark:text-white uppercase tracking-wider text-[10px] text-indigo-600 dark:text-indigo-400", children: "Regional & Localized Defaults" }),
+              e.jsxs("div", {
+                className: "grid grid-cols-1 md:grid-cols-3 gap-4",
+                children: [
+                  e.jsxs("div", { children: [e.jsx("label", { className: "block text-slate-700 dark:text-slate-300 font-bold mb-1", children: "Default Currency *" }), e.jsx("select", { value: generalForm.currency, onChange: (ev) => setGeneralForm({ ...generalForm, currency: ev.target.value }), className: "w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 outline-none focus:border-indigo-500", children: ["INR", "USD", "EUR", "GBP", "AED", "SGD", "AUD", "CAD"].map(c => e.jsx("option", { key: c, value: c, children: c })) })] }),
+                  e.jsxs("div", { children: [e.jsx("label", { className: "block text-slate-700 dark:text-slate-300 font-bold mb-1", children: "Workspace Timezone *" }), e.jsx("select", { value: generalForm.timezone, onChange: (ev) => setGeneralForm({ ...generalForm, timezone: ev.target.value }), className: "w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 outline-none focus:border-indigo-500", children: ["Asia/Kolkata", "UTC", "America/New_York", "Europe/London", "Asia/Dubai", "Asia/Singapore", "Australia/Sydney"].map(tz => e.jsx("option", { key: tz, value: tz, children: tz })) })] }),
+                  e.jsxs("div", { children: [e.jsx("label", { className: "block text-slate-700 dark:text-slate-300 font-bold mb-1", children: "Country Origin" }), e.jsx("input", { type: "text", value: generalForm.country, onChange: (ev) => setGeneralForm({ ...generalForm, country: ev.target.value }), className: "w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 outline-none focus:border-indigo-500" })] })
+                ]
+              })
+            ]
+          }),
+
+          // Section 3: CRM Branding & Custom Styling
+          e.jsxs("div", {
+            className: "p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 space-y-4",
+            children: [
+              e.jsx("h3", { className: "font-black text-slate-900 dark:text-white uppercase tracking-wider text-[10px] text-indigo-600 dark:text-indigo-400", children: "CRM Workspace Branding & Theme Colors" }),
+              e.jsxs("div", {
+                className: "grid grid-cols-1 md:grid-cols-2 gap-4",
+                children: [
+                  e.jsxs("div", { children: [e.jsx("label", { className: "block text-slate-700 dark:text-slate-300 font-bold mb-1", children: "Primary Brand Color" }), e.jsxs("div", { className: "flex items-center space-x-2", children: [e.jsx("input", { type: "color", value: generalForm.primaryColor, onChange: (ev) => setGeneralForm({ ...generalForm, primaryColor: ev.target.value }), className: "w-10 h-10 rounded-xl bg-transparent border-0 cursor-pointer" }), e.jsx("input", { type: "text", value: generalForm.primaryColor, onChange: (ev) => setGeneralForm({ ...generalForm, primaryColor: ev.target.value }), className: "flex-1 px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 outline-none font-mono" })] })] }),
+                  e.jsxs("div", { children: [e.jsx("label", { className: "block text-slate-700 dark:text-slate-300 font-bold mb-1", children: "Accent Brand Color" }), e.jsxs("div", { className: "flex items-center space-x-2", children: [e.jsx("input", { type: "color", value: generalForm.secondaryColor, onChange: (ev) => setGeneralForm({ ...generalForm, secondaryColor: ev.target.value }), className: "w-10 h-10 rounded-xl bg-transparent border-0 cursor-pointer" }), e.jsx("input", { type: "text", value: generalForm.secondaryColor, onChange: (ev) => setGeneralForm({ ...generalForm, secondaryColor: ev.target.value }), className: "flex-1 px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 outline-none font-mono" })] })] })
+                ]
+              }),
+              e.jsxs("div", {
+                className: "grid grid-cols-1 md:grid-cols-2 gap-4",
+                children: [
+                  e.jsxs("div", { children: [e.jsx("label", { className: "block text-slate-700 dark:text-slate-300 font-bold mb-1", children: "Company Logo Image URL" }), e.jsx("input", { type: "text", value: generalForm.logoUrl, onChange: (ev) => setGeneralForm({ ...generalForm, logoUrl: ev.target.value }), placeholder: "https://domain.com/logo.png", className: "w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 outline-none focus:border-indigo-500" })] }),
+                  e.jsxs("div", { children: [e.jsx("label", { className: "block text-slate-700 dark:text-slate-300 font-bold mb-1", children: "Workspace Favicon URL" }), e.jsx("input", { type: "text", value: generalForm.faviconUrl, onChange: (ev) => setGeneralForm({ ...generalForm, faviconUrl: ev.target.value }), placeholder: "https://domain.com/favicon.ico", className: "w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 outline-none focus:border-indigo-500" })] })
+                ]
+              })
+            ]
+          }),
+
+          // Section 4: Pipeline & Lead Automation Policies
+          e.jsxs("div", {
+            className: "p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 space-y-4",
+            children: [
+              e.jsx("h3", { className: "font-black text-slate-900 dark:text-white uppercase tracking-wider text-[10px] text-indigo-600 dark:text-indigo-400", children: "Lead & Pipeline Automation Policies" }),
+              e.jsxs("div", {
+                className: "grid grid-cols-1 md:grid-cols-3 gap-4",
+                children: [
+                  e.jsxs("div", { children: [e.jsx("label", { className: "block text-slate-700 dark:text-slate-300 font-bold mb-1", children: "Qualified Lead Score Threshold" }), e.jsx("input", { type: "number", value: generalForm.leadThreshold, onChange: (ev) => setGeneralForm({ ...generalForm, leadThreshold: ev.target.value }), className: "w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 outline-none focus:border-indigo-500" })] }),
+                  e.jsxs("div", { children: [e.jsx("label", { className: "block text-slate-700 dark:text-slate-300 font-bold mb-1", children: "Auto Lead Assignment Policy" }), e.jsx("select", { value: generalForm.assignmentMethod, onChange: (ev) => setGeneralForm({ ...generalForm, assignmentMethod: ev.target.value }), className: "w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 outline-none focus:border-indigo-500", children: ["Round Robin", "Manual", "Territory Based", "Performance Weighted"].map(m => e.jsx("option", { key: m, value: m, children: m })) })] }),
+                  e.jsxs("div", { children: [e.jsx("label", { className: "block text-slate-700 dark:text-slate-300 font-bold mb-1", children: "Customer Conversion Policy" }), e.jsx("select", { value: generalForm.autoConvert, onChange: (ev) => setGeneralForm({ ...generalForm, autoConvert: ev.target.value }), className: "w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 outline-none focus:border-indigo-500", children: ["Manual Approval", "Auto Convert on Deal Won", "Auto Convert on First Invoice"].map(p => e.jsx("option", { key: p, value: p, children: p })) })] })
+                ]
+              })
+            ]
+          }),
+
+          // Submit Button
+          e.jsx("div", {
+            className: "flex justify-end pt-2",
+            children: e.jsx("button", { type: "submit", disabled: loading, className: "px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold cursor-pointer shadow-md shadow-indigo-600/30 transition transform hover:scale-105", children: loading ? "Saving General Settings..." : "Save General Settings" })
+          })
+        ]
+      })
+    ]
+  });
+}
+`;
+
+const newSettingsPageWrapperJs = `
+function SettingsPageWrapper() {
+  const [activeSettingsTab, setActiveSettingsTab] = t.useState("general");
+
+  t.useEffect(() => {
+    const updateTab = () => {
+      const path = window.location.pathname;
+      if (path.includes("/settings/general")) setActiveSettingsTab("general");
+      else if (path.includes("/settings/account")) setActiveSettingsTab("account");
+      else if (path.includes("/settings/web")) setActiveSettingsTab("web");
+      else if (path.includes("/settings/lead-trash") || path.includes("/settings/trash")) setActiveSettingsTab("trash");
+      else if (path.includes("/settings/lead")) setActiveSettingsTab("lead");
+      else if (path.includes("/settings/hrms")) setActiveSettingsTab("hrms");
+      else if (path.includes("/settings/integrations")) setActiveSettingsTab("integrations");
+      else if (path.includes("/settings/attributes")) setActiveSettingsTab("attributes");
+      else if (path.includes("/settings/templates")) setActiveSettingsTab("templates");
+      else if (path.includes("/settings/automation")) setActiveSettingsTab("automation");
+      else setActiveSettingsTab("general");
+    };
+    updateTab();
+    window.addEventListener("popstate", updateTab);
+    return () => {
+      window.removeEventListener("popstate", updateTab);
+    };
+  }, []);
+
+  const handleTabClick = (tabKey) => {
+    const routeMap = {
+      general: "/settings/general",
+      account: "/settings/account",
+      web: "/settings/web",
+      lead: "/settings/lead",
+      hrms: "/settings/hrms",
+      integrations: "/settings/integrations",
+      trash: "/settings/lead-trash",
+      attributes: "/settings/attributes",
+      templates: "/settings/templates",
+      automation: "/settings/automation"
+    };
+    const targetUrl = routeMap[tabKey] || "/settings/general";
+    if (window.location.pathname !== targetUrl) {
+      window.history.pushState({}, "", targetUrl);
+      window.dispatchEvent(new Event("popstate"));
+    }
+    setActiveSettingsTab(tabKey);
+  };
+
+  const renderActiveTab = () => {
+    switch (activeSettingsTab) {
+      case "general": return e.jsx(GeneralSettingsComponent, {});
+      case "account": return e.jsx(AccountSettings, {});
+      case "web": return e.jsx(WebSettingsComponent, {});
+      case "lead": return e.jsx(LeadSettingsComponent, {});
+      case "hrms": return e.jsx(HRMSSettingsComponent, {});
+      case "integrations": return e.jsx(DetailedIntegrations, {});
+      case "trash": return e.jsx(LeadTrash, {});
+      case "attributes": return e.jsx(AttributesSettings, {});
+      case "templates": return e.jsx(TemplatesSettings, {});
+      case "automation": return e.jsx(AutomationRulesComponent, {});
+      default: return e.jsx(GeneralSettingsComponent, {});
+    }
+  };
+
+  const tabsConfig = [
+    { key: "general", label: "⚙️ General Settings" },
+    { key: "account", label: "🔐 Account & Security" },
+    { key: "web", label: "🌐 Web Settings" },
+    { key: "lead", label: "🎯 Lead Settings" },
+    { key: "hrms", label: "👥 HRMS Settings" },
+    { key: "integrations", label: "🔗 Integrations & API" },
+    { key: "trash", label: "🗑️ Lead Trash" },
+    { key: "attributes", label: "🏷️ Attributes" },
+    { key: "templates", label: "📝 Templates" },
+    { key: "automation", label: "⚡ Automation Rules" }
+  ];
+
+  return e.jsxs("div", {
+    className: "space-y-6 w-full min-w-0 pb-12 text-xs font-semibold overflow-x-hidden",
+    children: [
+      e.jsx("div", {
+        className: "flex items-center bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm w-full max-w-full overflow-x-auto scrollbar-thin",
+        children: e.jsx("div", {
+          className: "flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl font-extrabold space-x-1 whitespace-nowrap min-w-max",
+          children: tabsConfig.map(tab => e.jsx("button", {
+            key: tab.key,
+            type: "button",
+            onClick: () => handleTabClick(tab.key),
+            className: \`px-4 py-2.5 rounded-xl transition-all duration-200 cursor-pointer \${activeSettingsTab === tab.key ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30 font-bold scale-102" : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-slate-700/50"}\`,
+            children: tab.label
+          }))
+        })
+      }),
+
+      e.jsx("div", {
+        className: "w-full min-w-0 transition-opacity duration-300",
+        children: renderActiveTab()
+      })
+    ]
+  });
+}
+`;
+
+function patchSettingsAssetFile(filePath) {
+  if (!fs.existsSync(filePath)) return;
+  let code = fs.readFileSync(filePath, 'utf8');
+
+  // Replace/inject GeneralSettingsComponent
+  const wrapperMarker = 'function SettingsPageWrapper()';
+  const gsMarker = 'function GeneralSettingsComponent()';
+  if (code.includes(gsMarker)) {
+    const gsIndex = code.indexOf(gsMarker);
+    const wrapperIndex = code.indexOf(wrapperMarker);
+    code = code.substring(0, gsIndex) + completeGeneralSettingsJs + '\n' + newSettingsPageWrapperJs + '\nexport { SettingsPageWrapper as default };\n';
+  } else if (code.includes(wrapperMarker)) {
+    const wrapperIndex = code.indexOf(wrapperMarker);
+    code = code.substring(0, wrapperIndex) + completeGeneralSettingsJs + '\n' + newSettingsPageWrapperJs + '\nexport { SettingsPageWrapper as default };\n';
+  }
+
+  fs.writeFileSync(filePath, code, 'utf8');
+  console.log('Successfully patched Settings asset:', path.basename(filePath));
+}
+
+patchSettingsAssetFile(file1);
+patchSettingsAssetFile(file2);
+
+console.log('Runtime bug fix script completed!');

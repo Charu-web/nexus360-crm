@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  nexus360-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nexus360-crm-server
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - HOST=0.0.0.0
+      - NODE_ENV=production
+      - JWT_SECRET=production_nexus360_secure_jwt_secret_key_2026_enterprise
+      - DATABASE_URL=file:./dev.db
+      - CORS_ORIGIN=*
+      - AI_PROVIDER=fallback-deterministic
+    volumes:
+      - nexus360-db-data:/app/prisma
+      - nexus360-uploads:/app/uploads
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  nexus360-db-data:
+    driver: local
+  nexus360-uploads:
+    driver: local

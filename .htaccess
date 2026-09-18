@@ -1,0 +1,31 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Route /api and /health requests to PHP API Gateway (api.php) for Hostinger compatibility
+  RewriteRule ^api/(.*)$ api.php [L]
+  RewriteRule ^api$ api.php [L]
+  RewriteRule ^health$ api.php [L]
+
+  # Directly route nested asset requests to the assets directory
+  RewriteRule ^(.*)/?assets/(.*)$ assets/$2 [L]
+
+  # Serve existing static files directly (do not bypass SPA routes matching folder names like /services)
+  RewriteCond %{REQUEST_FILENAME} -f
+  RewriteRule ^ - [L]
+
+  # Exclude static assets from SPA rewrite
+  RewriteCond %{REQUEST_URI} \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|json|wasm)$ [NC]
+  RewriteRule ^ - [L]
+
+  # Fallback all SPA routes to index.html
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+<IfModule mod_headers.c>
+  <FilesMatch "\.(html|htm|js|css|json)$">
+    Header set Cache-Control "max-age=0, no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires "Wed, 11 Jan 1984 05:00:00 GMT"
+  </FilesMatch>
+</IfModule>
+

@@ -1,0 +1,57 @@
+name: Nexus360 Enterprise CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-verify:
+    name: Build, Lint & Automated Verification
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [20.x]
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: TypeScript Typecheck
+        run: npx tsc --noEmit
+
+      - name: Build Application Bundle
+        run: npm run build
+
+      - name: Run Test Suite 1 - CRM Builder 4-Blueprint Lifecycle (84 tests)
+        run: npx ts-node src/scripts/test_blueprint_lifecycle.ts
+
+      - name: Run Test Suite 2 - Phase 2 Unified CRM + Automation (33 tests)
+        run: npx ts-node src/scripts/test_phase2_unified_crm.ts
+
+      - name: Run Test Suite 3 - Phase 3 Production AI & Assistants (48 tests)
+        run: npx ts-node src/scripts/test_phase3_production_ai.ts
+
+      - name: Run Test Suite 4 - Phase 4 Production Features & Vault (30 tests)
+        run: npx ts-node src/scripts/test_phase4_production_features.ts
+
+      - name: Run Test Suite 5 - Phase 8 Auth, Customer 360 & Audit Logs (15 tests)
+        run: npx ts-node src/scripts/test_phase8_auth_customer360_audit.ts
+
+      - name: Run Test Suite 6 - Comprehensive Nexus360 E2E (18 tests)
+        run: npx ts-node src/scripts/test_nexus360_e2e.ts
+
