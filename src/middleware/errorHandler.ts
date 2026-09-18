@@ -47,10 +47,11 @@ export const errorHandler = (
     return;
   }
 
-  const message =
+  const message = err.message || (
     process.env.NODE_ENV === 'production' && statusCode === 500
       ? 'An unexpected internal server error occurred.'
-      : err.message || 'Internal Server Error';
+      : 'Internal Server Error'
+  );
 
   res.status(statusCode).json({
     success: false,

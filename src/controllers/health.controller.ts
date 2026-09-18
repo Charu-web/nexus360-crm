@@ -20,12 +20,20 @@ export const getHealthStatus = async (req: Request, res: Response): Promise<void
   const configured = isSupabaseConfigured();
 
   // 1. Try local Prisma database check (SQLite or configured DATABASE_URL)
-  if (process.env.DATABASE_URL) {
+  const resolvedDbUrl = process.env.POSTGRES_PRISMA_URL ||
+                        process.env.DATABASE_URL ||
+                        process.env.POSTGRES_URL ||
+                        process.env.STORAGE_POSTGRES_PRISMA_URL ||
+                        process.env.STORAGE_DATABASE_URL ||
+                        process.env.STORAGE_POSTGRES_URL ||
+                        process.env.POSTGRES_URL_NON_POOLING ||
+                        process.env.STORAGE_POSTGRES_URL_NON_POOLING;
+  if (resolvedDbUrl) {
     try {
       await withTimeout(prisma.$queryRaw`SELECT 1`, 3000);
       dbStatus = 'connected';
       dbError = null;
-      provider = process.env.DATABASE_URL.startsWith('file:') ? 'SQLite' : 'PostgreSQL';
+      provider = resolvedDbUrl.startsWith('file:') ? 'SQLite' : 'PostgreSQL';
     } catch (prismaErr: any) {
       dbError = prismaErr.message;
     }

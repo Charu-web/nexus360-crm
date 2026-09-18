@@ -3,8 +3,16 @@ import path from 'path';
 import fs from 'fs';
 
 function getDatabaseUrl(): string {
-  if (process.env.DATABASE_URL) {
-    return process.env.DATABASE_URL;
+  const url = process.env.POSTGRES_PRISMA_URL ||
+              process.env.DATABASE_URL ||
+              process.env.POSTGRES_URL ||
+              process.env.STORAGE_POSTGRES_PRISMA_URL ||
+              process.env.STORAGE_DATABASE_URL ||
+              process.env.STORAGE_POSTGRES_URL ||
+              process.env.POSTGRES_URL_NON_POOLING ||
+              process.env.STORAGE_POSTGRES_URL_NON_POOLING;
+  if (url) {
+    return url;
   }
   const candidates = [
     path.resolve(process.cwd(), 'prisma/dev.db'),
@@ -22,7 +30,7 @@ function getDatabaseUrl(): string {
 }
 
 const dbUrl = getDatabaseUrl();
-console.log(`[DB] Resolved Database URL: ${dbUrl.startsWith('postgresql') ? 'PostgreSQL (Cloud)' : dbUrl}`);
+console.log(`[DB] Resolved Database URL: ${dbUrl.startsWith('postgresql') || dbUrl.startsWith('postgres') ? 'PostgreSQL (Cloud)' : dbUrl}`);
 
 const globalForPrisma = global as unknown as { prisma: PrismaClient };
 
