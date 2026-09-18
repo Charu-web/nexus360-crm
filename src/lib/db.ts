@@ -3,8 +3,10 @@ import path from 'path';
 import fs from 'fs';
 
 function getDatabaseUrl(): string {
+  if (process.env.DATABASE_URL) {
+    return process.env.DATABASE_URL;
+  }
   const candidates = [
-    '/home/u490416745/domains/businesscrm.empireitxpert.in/public_html/prisma/dev.db',
     path.resolve(process.cwd(), 'prisma/dev.db'),
     path.resolve(process.cwd(), 'dev.db'),
     path.resolve(__dirname, '../../prisma/dev.db'),
@@ -16,11 +18,11 @@ function getDatabaseUrl(): string {
       return `file:${c}`;
     }
   }
-  return process.env.DATABASE_URL || 'file:./prisma/dev.db';
+  return 'file:./prisma/dev.db';
 }
 
 const dbUrl = getDatabaseUrl();
-console.log(`[DB] Resolved SQLite Database URL: ${dbUrl}`);
+console.log(`[DB] Resolved Database URL: ${dbUrl.startsWith('postgresql') ? 'PostgreSQL (Cloud)' : dbUrl}`);
 
 const globalForPrisma = global as unknown as { prisma: PrismaClient };
 

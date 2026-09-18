@@ -10,6 +10,10 @@
       "use": "@vercel/static"
     },
     {
+      "src": "index.html",
+      "use": "@vercel/static"
+    },
+    {
       "src": "assets/**",
       "use": "@vercel/static"
     }
@@ -24,8 +28,12 @@
       "dest": "/assets/$1"
     },
     {
+      "src": "/nexus360.html",
+      "dest": "/nexus360.html"
+    },
+    {
       "src": "/(.*)",
-      "dest": "/api/index.ts"
+      "dest": "/nexus360.html"
     }
   ]
 }
