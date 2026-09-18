@@ -10,6 +10,8 @@ lerna-debug.log*
 dist/
 build/
 *.tsbuildinfo
+.vercel/
+
 
 # Environment variables & secrets (NEVER COMMIT SENSITIVE SECRETS)
 .env
