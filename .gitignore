@@ -9,8 +9,14 @@ lerna-debug.log*
 # Build outputs
 dist/
 build/
+.next/
 *.tsbuildinfo
 .vercel/
+nexus-ai/**/node_modules/
+nexus-ai/**/.next/
+nexus-ai/**/dist/
+nexus-ai/**/build/
+nexus-ai/**/.env*
 
 
 # Environment variables & secrets (NEVER COMMIT SENSITIVE SECRETS)

@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "baseUrl": ".",
+    "paths": {
+      "@nexus-ai/types": ["../../packages/types/dist/index.d.ts"],
+      "@nexus-ai/validation": ["../../packages/validation/dist/index.d.ts"]
+    }
+  },
+  "references": [
+    { "path": "../../packages/types" },
+    { "path": "../../packages/validation" }
+  ],
+  "include": ["src/**/*"]
+}
